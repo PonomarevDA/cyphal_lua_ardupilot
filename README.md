@@ -18,7 +18,7 @@ start the script and configure CAN driver:
 |-|-|-|
 | SCR_ENABLE      | 1 | 1 means scripting is enabled, 0 means disabled
 | CAN_D1_PROTOCOL | 10 | 10 means scripting
-| CAN_P1_BITRATE  | 100000 | Default baudrate for most of the applications
+| CAN_P1_BITRATE  | 1000000 | Default bitrate for most of the applications
 | CAN_P1_DRIVER   | First driver
 
 then the flight controller should be rebooted and parameters should be
