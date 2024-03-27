@@ -3,31 +3,29 @@ local driver1 = CAN:get_device(20)
 assert(driver1 ~= nil, 'No scripting CAN interfaces found')
 
 local PARAM_TABLE_KEY = 42
-assert(param:add_table(PARAM_TABLE_KEY, "CYP_", 6), 'could not add param table')
-assert(param:add_param(PARAM_TABLE_KEY, 1, 'ENABLE', 1), 'could not add CYP_ENABLE param')
-assert(param:add_param(PARAM_TABLE_KEY, 2, 'NODE_ID', 127), 'could not add CYP_NODE_ID param')
-assert(param:add_param(PARAM_TABLE_KEY, 3, 'TESTS', 0), 'could not add CYP_TESTS param')
-assert(param:add_param(PARAM_TABLE_KEY, 4, 'SP', 65535), 'could not add CYP_SP param')
-assert(param:add_param(PARAM_TABLE_KEY, 5, 'RD', 65535), 'could not add CYP_RD param')
-assert(param:add_param(PARAM_TABLE_KEY, 6, 'FB', 65535), 'could not add CYP_FB param')
+local PARAM_TABLE_PREFIX = "CYP_"
+function bind_param(name, idx, def)
+  assert(param:add_param(PARAM_TABLE_KEY, idx, name, def), 'add param failed')
+  return Parameter(PARAM_TABLE_PREFIX .. name):get()
+end
 
-local param_cyp_enable = Parameter("CYP_ENABLE")  -- 1 = enabled, 0 = disabled
-local param_cyp_tests = Parameter("CYP_TESTS")    -- 1 = enabled, 0 = disabled
-local node_id = Parameter("CYP_NODE_ID"):get()
+assert(param:add_table(PARAM_TABLE_KEY, PARAM_TABLE_PREFIX, 6), 'could not add param table')
+
+local CYPHAL_ENABLE     = bind_param("ENABLE",  1, 1)
+local NODE_ID           = bind_param("NODE_ID", 2, 1)
+local CYPHAL_TESTS      = bind_param("TESTS",   3, 0)
+local SETPOINT_PORT_ID  = bind_param("SP",      4, 65535)
+local READINESS_PORT_ID = bind_param("RD",      5, 65535)
+local FEEDBACK_PORT_ID  = bind_param("FB",      6, 65535)
 
 local HEARTBEAT_PORT_ID = 7509
 local heartbeat_transfer_id = 0
 local next_heartbeat_pub_time_ms = 1000
 
-local readiness_port_id = Parameter("CYP_RD"):get()
 local readiness_transfer_id = 0
 local next_readiness_pub_time_ms = 1000
 
-local setpoint_port_id = Parameter("CYP_SP"):get()
 local setpoint_transfer_id = 0
-
-local first_esc_feedback_port_id = Parameter("CYP_FB"):get()
-local last_esc_feedback_port_id = first_esc_feedback_port_id + 7
 
 -- Constants
 local MAX_PORT_ID = 8191
@@ -61,8 +59,8 @@ function spin_recv()
     end
 
     port_id = parse_frame(frame)
-    if port_id >= first_esc_feedback_port_id and port_id <= last_esc_feedback_port_id then
-      esc_idx = port_id - first_esc_feedback_port_id
+    if port_id >= FEEDBACK_PORT_ID and port_id < (FEEDBACK_PORT_ID + MAX_NUMBER_OF_MOTORS) then
+      esc_idx = port_id - FEEDBACK_PORT_ID
       esc_feedback_callback(frame, esc_idx)
     end
   end
@@ -80,7 +78,7 @@ function process_heartbeat()
   next_heartbeat_pub_time_ms = millis() + 500
 
   msg = CANFrame()
-  msg:id(get_msg_id(HEARTBEAT_PORT_ID, node_id))
+  msg:id(get_msg_id(HEARTBEAT_PORT_ID, NODE_ID))
 
   local now_sec = (millis() / 1000)
   msg:data(0, (now_sec & 255):toint())
@@ -94,7 +92,7 @@ function process_heartbeat()
 end
 
 function process_readiness()
-  if readiness_port_id > MAX_PORT_ID then
+  if READINESS_PORT_ID > MAX_PORT_ID then
     return
   end
   if next_readiness_pub_time_ms >= millis() then
@@ -103,7 +101,7 @@ function process_readiness()
   next_readiness_pub_time_ms = millis() + 100
 
   msg = CANFrame()
-  msg:id( get_msg_id(readiness_port_id, node_id) )
+  msg:id( get_msg_id(READINESS_PORT_ID, NODE_ID) )
 
   if arming:is_armed() then
     msg:data(0, READINESS_ENGAGED)
@@ -118,7 +116,7 @@ function process_readiness()
 end
 
 function send_setpoint()
-  if setpoint_port_id > MAX_PORT_ID then
+  if SETPOINT_PORT_ID > MAX_PORT_ID then
     return
   end
 
@@ -135,7 +133,7 @@ function send_setpoint()
 
   payload = {}
   payload_size = vector_serialize(setpoints, number_of_motors, payload)
-  can_driver_send(payload, payload_size, setpoint_port_id)
+  can_driver_send(payload, payload_size, SETPOINT_PORT_ID)
   setpoint_transfer_id = increment_transfer_id(setpoint_transfer_id)
 end
 
@@ -186,7 +184,7 @@ function can_driver_send(payload, payload_size, port_id)
   can_data_size = convert_payload_to_can_data(can_data, payload, payload_size, setpoint_transfer_id)
 
   msg = CANFrame()
-  msg:id(get_msg_id(port_id, node_id))
+  msg:id(get_msg_id(port_id, NODE_ID))
 
   for can_data_idx = 0, can_data_size - 1 do
     data_idx = can_data_idx % 8
@@ -382,11 +380,11 @@ end
 
 
 -- Entry point
-if (param_cyp_tests:get() >= 1) then
+if (CYPHAL_TESTS >= 1) then
   gcs:send_text(5, "LUA Cyphal unit tests enabled!")
 end
 
-if (param_cyp_enable:get() >= 1) then
+if (CYPHAL_ENABLE >= 1) then
   gcs:send_text(5, "LUA Cyphal enabled!")
   return update()
 end
