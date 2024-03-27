@@ -4,12 +4,14 @@ require 'libcanard_crc16'
 function array_serialize(setpoints, motors_amount, payload)
   payload[1] = motors_amount
 
+  local byte_idx = 2
   for motor_num = 1, motors_amount do
     setpoint = setpoints[motor_num]
     if (setpoint ~= nil) then
-      payload[motor_num << 1] = setpoint % 256
-      payload[(motor_num << 1) + 1] = (setpoint >> 8) % 256
+      payload[byte_idx] = setpoint & 0xFF
+      payload[byte_idx + 1] = (setpoint >> 8) & 0xFF
     end
+    byte_idx = byte_idx + 2
   end
 
   return 1 + 2 * motors_amount
@@ -39,10 +41,10 @@ local function compact_feedback_deserialize_rpm(payload)
   return ((payload[5] >> 3) + (payload[6] << 5))
 end
 
+-- uint11 dc_voltage # [    0,+2047] * 0.2 = [     0,+409.4] volt
+-- int12 dc_current  # [-2048,+2047] * 0.2 = [-409.6,+409.4] ampere
+-- int13 velocity    # [-4096,+4095] radian/second (approx. [-39114,+39104] RPM)
 function compact_feedback_deserialize(payload, payload_size)
-  -- uint11 dc_voltage # [    0,+2047] * 0.2 = [     0,+409.4] volt
-  -- int12 dc_current  # [-2048,+2047] * 0.2 = [-409.6,+409.4] ampere
-  -- int13 velocity    # [-4096,+4095] radian/second (approx. [-39114,+39104] RPM)
   local feedback = {}
 
   if payload_size == 7 then
