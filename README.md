@@ -108,7 +108,7 @@ y sub 2000:reg.udral.service.actuator.common.sp.Vector8
 Before pushing a commit:
 
 1. Check code style with `lua-check`
-2. Run tests with `tests/all.lua`
+2. Run tests with `lua tests/all.lua`
 
 ## 3. USEFUL LINKS
 

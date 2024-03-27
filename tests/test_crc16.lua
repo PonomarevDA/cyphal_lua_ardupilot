@@ -1,3 +1,4 @@
+package.path = package.path .. ";libcanard/?.lua"
 require 'libcanard_crc16'
 require 'libcanard_assert'
 
