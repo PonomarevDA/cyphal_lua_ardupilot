@@ -92,23 +92,15 @@ function process_heartbeat()
 end
 
 function process_readiness()
-  if READINESS_PORT_ID > MAX_PORT_ID then
-    return
-  end
-  if next_readiness_pub_time_ms >= millis() then
+  if READINESS_PORT_ID > MAX_PORT_ID or next_readiness_pub_time_ms >= millis() then
     return
   end
   next_readiness_pub_time_ms = millis() + 100
 
-  msg = CANFrame()
-  msg:id( get_msg_id(READINESS_PORT_ID, NODE_ID) )
+  local msg = CANFrame()
+  msg:id(get_msg_id(READINESS_PORT_ID, NODE_ID))
 
-  if arming:is_armed() then
-    msg:data(0, READINESS_ENGAGED)
-  else
-    msg:data(0, READINESS_STANDBY)
-  end
-
+  msg:data(0, arming:is_armed() and READINESS_ENGAGED or READINESS_STANDBY)
   msg:data(1, create_tail_byte(1, 1, readiness_transfer_id))
   msg:dlc(2)
   can_send_frame(msg)
