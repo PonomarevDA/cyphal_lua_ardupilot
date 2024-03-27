@@ -53,7 +53,7 @@ end
 
 function spin_recv()
   for _ = 0, 4 do
-    frame = driver1:read_frame()
+    frame = can_recv_frame()
     if not frame then
       return
     end
@@ -87,7 +87,7 @@ function process_heartbeat()
   msg:data(3, ((now_sec >> 24) & 255):toint())
   msg:data(7, create_tail_byte(1, 1, heartbeat_transfer_id))
   msg:dlc(8)
-  driver1:write_frame(msg, 1000000)
+  can_send_frame(msg)
   heartbeat_transfer_id = increment_transfer_id(heartbeat_transfer_id)
 end
 
@@ -111,7 +111,7 @@ function process_readiness()
 
   msg:data(1, create_tail_byte(1, 1, readiness_transfer_id))
   msg:dlc(2)
-  driver1:write_frame(msg, 1000000)
+  can_send_frame(msg)
   readiness_transfer_id = increment_transfer_id(readiness_transfer_id)
 end
 
@@ -133,7 +133,7 @@ function send_setpoint()
 
   payload = {}
   payload_size = vector_serialize(setpoints, number_of_motors, payload)
-  can_driver_send(payload, payload_size, SETPOINT_PORT_ID)
+  can_send_cyphal_payload(payload, payload_size, SETPOINT_PORT_ID)
   setpoint_transfer_id = increment_transfer_id(setpoint_transfer_id)
 end
 
@@ -179,7 +179,14 @@ end
 -- END OF THE APPLICATION SECTION
 
 -- cyphal_can_driver START OF THE SECTION
-function can_driver_send(payload, payload_size, port_id)
+function can_send_frame(msg)
+  driver1:write_frame(msg, 10000) -- 10000us timeout
+end
+function can_recv_frame()
+  return driver1:read_frame()
+end
+
+function can_send_cyphal_payload(payload, payload_size, port_id)
   can_data = {}
   can_data_size = convert_payload_to_can_data(can_data, payload, payload_size, setpoint_transfer_id)
 
@@ -197,7 +204,7 @@ function can_driver_send(payload, payload_size, port_id)
 
     if need_send then
       msg:dlc(data_idx + 1)
-      driver1:write_frame(msg, 1000000)
+      can_send_frame(msg)
       need_send = false
     end
   end
