@@ -52,32 +52,31 @@ function update()
 end
 
 function spin_recv()
-  for _ = 0, 4 do
-    frame = can_recv_frame()
+  for _ = 1, 5 do
+    local frame = can_recv_frame()
     if not frame then
       return
     end
 
-    port_id = parse_frame(frame)
+    local port_id = parse_frame(frame)
     if port_id >= FEEDBACK_PORT_ID and port_id < (FEEDBACK_PORT_ID + MAX_NUMBER_OF_MOTORS) then
-      esc_idx = port_id - FEEDBACK_PORT_ID
+      local esc_idx = port_id - FEEDBACK_PORT_ID
       esc_feedback_callback(frame, esc_idx)
     end
   end
 end
 
+-- uint32 uptime # [second]
+-- uint8 health
+-- uint8 mode
+-- uint8 vsscs
 function process_heartbeat()
-  -- uint32 uptime # [second]
-  -- uint8 health
-  -- uint8 mode
-  -- uint8 vsscs
-
   if next_heartbeat_pub_time_ms >= millis() then
     return
   end
   next_heartbeat_pub_time_ms = millis() + 500
 
-  msg = CANFrame()
+  local msg = CANFrame()
   msg:id(get_msg_id(HEARTBEAT_PORT_ID, NODE_ID))
 
   local now_sec = (millis() / 1000)
@@ -115,7 +114,7 @@ function send_setpoint()
   local setpoints = {0, 0, 0, 0, 0, 0, 0, 0}
   local number_of_motors = 0
   for motor_idx = 0, MAX_NUMBER_OF_MOTORS - 1 do
-    pwm_duration_us = SRV_Channels:get_output_pwm(MOTOR_1_FUNC_IDX + motor_idx)
+    local pwm_duration_us = SRV_Channels:get_output_pwm(MOTOR_1_FUNC_IDX + motor_idx)
     if (pwm_duration_us == nil) then
       break
     end
@@ -123,9 +122,9 @@ function send_setpoint()
     number_of_motors = number_of_motors + 1
   end
 
-  payload = {}
-  payload_size = vector_serialize(setpoints, number_of_motors, payload)
-  can_send_cyphal_payload(payload, payload_size, SETPOINT_PORT_ID)
+  local payload = {}
+  local payload_size = vector_serialize(setpoints, number_of_motors, payload)
+  can_send_cyphal_payload(payload, payload_size, SETPOINT_PORT_ID, setpoint_transfer_id)
   setpoint_transfer_id = increment_transfer_id(setpoint_transfer_id)
 end
 
@@ -154,9 +153,9 @@ function esc_feedback_parse_rpm(frame)
 end
 
 function esc_feedback_callback(frame, esc_idx)
-  voltage_raw = esc_feedback_parse_voltage(frame)
-  current_raw = esc_feedback_parse_dc_current(frame)
-  rpm = esc_feedback_parse_rpm(frame)
+  -- local voltage_raw = esc_feedback_parse_voltage(frame)
+  -- local current_raw = esc_feedback_parse_dc_current(frame)
+  local rpm = esc_feedback_parse_rpm(frame)
   -- gcs:send_text(6, string.format("ESC FB %i: V=%i, I=%i", esc_idx, voltage_raw, current_raw))
   esc_telem:update_rpm(esc_idx, rpm, 0)
 end
@@ -178,18 +177,18 @@ function can_recv_frame()
   return driver1:read_frame()
 end
 
-function can_send_cyphal_payload(payload, payload_size, port_id)
-  can_data = {}
-  can_data_size = convert_payload_to_can_data(can_data, payload, payload_size, setpoint_transfer_id)
+function can_send_cyphal_payload(payload, payload_size, port_id, transfer_id)
+  local can_data = {}
+  local can_data_size = convert_payload_to_can_data(can_data, payload, payload_size, transfer_id)
 
-  msg = CANFrame()
+  local msg = CANFrame()
   msg:id(get_msg_id(port_id, NODE_ID))
 
   for can_data_idx = 0, can_data_size - 1 do
-    data_idx = can_data_idx % 8
+    local data_idx = can_data_idx % 8
     msg:data(data_idx, can_data[can_data_idx + 1])
 
-    need_send = false
+    local need_send = false
     if data_idx == 7 or can_data_idx == can_data_size - 1 then
       need_send = true
     end
@@ -197,7 +196,6 @@ function can_send_cyphal_payload(payload, payload_size, port_id)
     if need_send then
       msg:dlc(data_idx + 1)
       can_send_frame(msg)
-      need_send = false
     end
   end
 end
@@ -207,9 +205,9 @@ end
 -- libcanard.lua START OF THE SECTION
 local UNUSED_PORT_ID = 65535
 
+-- =IF(BYTES>0;IF(BYTES>7;CEILING((BYTES+2)/7);1);)
 function get_number_of_frames_by_payload_size(number_of_bytes)
-  -- =IF(BYTES>0;IF(BYTES>7;CEILING((BYTES+2)/7);1);)
-  number_of_frames = 0
+  local number_of_frames = 0
 
   if number_of_bytes <= 7 then
     number_of_frames = 1
@@ -225,7 +223,8 @@ function get_number_of_frames_by_payload_size(number_of_bytes)
 end
 
 function parse_id(id)
-  service_not_message = (id >> 25) % 2
+  local service_not_message = (id >> 25) % 2
+  local port_id
   if service_not_message == 0 then
     port_id = (id >> 8) % 8192
   else
@@ -235,7 +234,7 @@ function parse_id(id)
 end
 
 function create_tail_byte(frame_num, number_of_frames, transfer_id)
-  tail_byte = transfer_id
+  local tail_byte = transfer_id
 
   if frame_num == 1 then
     tail_byte = tail_byte + 128
@@ -251,9 +250,9 @@ function create_tail_byte(frame_num, number_of_frames, transfer_id)
 end
 
 function convert_payload_to_can_data(buffer, payload, payload_size, transfer_id)
-  number_of_frames = get_number_of_frames_by_payload_size(payload_size)
-  buffer_size = 0
-  tail_byte_counter = 0
+  local number_of_frames = get_number_of_frames_by_payload_size(payload_size)
+  local buffer_size = 0
+  local tail_byte_counter = 0
   for payload_idx = 1, payload_size do
     if payload_idx % 7 == 1 and buffer_size ~= 0 then
       buffer_size = buffer_size + 1
@@ -265,7 +264,7 @@ function convert_payload_to_can_data(buffer, payload, payload_size, transfer_id)
   end
 
   if number_of_frames > 1 then
-    crc = calc_crc16(payload, payload_size)
+    local crc = calc_crc16(payload, payload_size)
     buffer_size = buffer_size + 1
     buffer[buffer_size] = crc >> 8
     buffer_size = buffer_size + 1
@@ -279,11 +278,7 @@ function convert_payload_to_can_data(buffer, payload, payload_size, transfer_id)
 end
 
 function increment_transfer_id(transfer_id)
-  if transfer_id >= 31 then
-    return 0
-  else
-    return transfer_id + 1
-  end
+  return (transfer_id + 1) % 32
 end
 -- libcanard.lua END OF THE SECTION
 
@@ -316,7 +311,6 @@ function crc16_add_byte(prev_crc, byte_value)
 end
 
 function calc_crc16(byte_array, num_bytes)
-  start_byte = 1
   local crc = 0xFFFF
   for i = 1, num_bytes do
     local byte_value = byte_array[i] & 0xFF
@@ -330,12 +324,14 @@ end
 function array_serialize(setpoints, motors_amount, payload)
   payload[1] = motors_amount
 
+  local byte_idx = 2
   for motor_num = 1, motors_amount do
     setpoint = setpoints[motor_num]
     if (setpoint ~= nil) then
-      payload[motor_num << 1] = setpoint % 256
-      payload[(motor_num << 1) + 1] = (setpoint >> 8) % 256
+      payload[byte_idx] = setpoint & 0xFF
+      payload[byte_idx + 1] = (setpoint >> 8) & 0xFF
     end
+    byte_idx = byte_idx + 2
   end
 
   return 1 + 2 * motors_amount
@@ -345,8 +341,8 @@ function vector_serialize(setpoints, motors_amount, payload)
   for motor_idx = 0, motors_amount - 1 do
     setpoint_f16 = cast_native_float_to_float16(setpoints[motor_idx + 1])
     if (setpoint_f16 ~= nil) then
-      payload[(motor_idx << 1) + 1] = setpoint_f16 % 256
-      payload[(motor_idx << 1) + 2] = (setpoint_f16 >> 8) % 256
+      payload[(motor_idx * 2) + 1] = setpoint_f16 & 0xFF
+      payload[(motor_idx * 2) + 2] = (setpoint_f16 >> 8) & 0xFF
     end
   end
 

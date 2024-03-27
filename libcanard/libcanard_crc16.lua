@@ -26,7 +26,6 @@ function crc16_add_byte(prev_crc, byte_value)
 end
 
 function calc_crc16(byte_array, num_bytes)
-  start_byte = 1
   local crc = 0xFFFF
   for i = 1, num_bytes do
     local byte_value = byte_array[i] & 0xFF
