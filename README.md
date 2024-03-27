@@ -1,6 +1,7 @@
 [![linter](https://github.com/PonomarevDA/cyphal_lua_ardupilot/actions/workflows/linter.yml/badge.svg)](https://github.com/PonomarevDA/cyphal_lua_ardupilot/actions/workflows/linter.yml) [![tests](https://github.com/PonomarevDA/cyphal_lua_ardupilot/actions/workflows/unit_tests.yml/badge.svg)](https://github.com/PonomarevDA/cyphal_lua_ardupilot/actions/workflows/unit_tests.yml)
+![coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/PonomarevDA/466f0869d81f7092ff682b1e6e964812/raw/test.json)
 
-# ArduPilot Cyphal LUA Driver
+# ArduPilot Cyphal/CAN LUA Driver
 
 This driver implements support for Cyphal ESCs such as [Myxa](https://cyphal.store/products/zubax-ad0505-myxa-esc), [Mini node](https://cyphal.store/products/raccoonlab-cyphal-can-mininode), [kotleta20](https://holybro.com/products/kotleta20) and other devices.
 

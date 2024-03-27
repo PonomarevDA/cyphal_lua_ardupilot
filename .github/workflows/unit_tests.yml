@@ -15,3 +15,36 @@ jobs:
 
       - name: Run tests
         run: lua tests/all.lua
+
+      - name: install luarocks and luacov
+        run: |
+          sudo apt-get install luarocks
+          sudo luarocks install luacov
+
+      - name: run
+        run: |
+          lua -lluacov tests/all.lua
+          luacov libcanard/*.lua
+
+      - name: print
+        run: |
+          tail -20 luacov.report.out
+
+      - name: Set env
+        run: echo "COVERAGE=$(tail -1 luacov.report.out | awk '{print $NF}')" >> $GITHUB_ENV
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: luacov.report.out
+          path: luacov.report.out
+
+      - name: Create Awesome Badge
+        uses: schneegans/dynamic-badges-action@v1.7.0
+        with:
+          auth: ${{ secrets.COVERAGE_BADGE_TOKEN }}
+          gistID: 466f0869d81f7092ff682b1e6e964812
+          filename: test.json
+          label: Coverage
+          message: ${{ env.COVERAGE }}
+          color: green
