@@ -22,7 +22,8 @@ First, you need to upload an ArduPilot firmware to the FMU. In general, it shoul
 
 | [QGroundControl](https://docs.qgroundcontrol.com/Stable_V4.3/en/qgc-user-guide/setup_view/firmware.html) | [MissionPlanner](https://ardupilot.org/planner/docs/common-loading-firmware-onto-pixhawk.html) |
 |-|-|
-| <img src="assets/firmware_setup.png" alt="drawing" height="200"/> | <img src="https://ardupilot.org/planner/_images/Pixhawk_InstallFirmware.jpg" alt="drawing" height="200"/> |
+| <img src="https://raw.githubusercontent.com/wiki/PonomarevDA/cyphal_lua_ardupilot/assets/firmware_setup.png" alt="drawing" width="215"> | <img src="https://ardupilot.org/planner/_images/Pixhawk_InstallFirmware.jpg" alt="drawing" width="485"/> |
+
 
 Alternatively, you can manually build a binary and upload the firmware via cli. Here is an example for CUAVv5:
 
@@ -40,7 +41,7 @@ This driver should be loaded by placing the lua script in the
 
 | Copy directly | [Using MAVFtp](https://ardupilot.org/copter/docs/common-lua-scripts.html) |
 |-|-|
-| ... | <img src="https://ardupilot.org/copter/_images/scripting-MP-mavftp.png" alt="drawing" height="200"/> |
+| <img src="https://raw.githubusercontent.com/wiki/PonomarevDA/cyphal_lua_ardupilot/assets/sdcard.png" alt="drawing" width="385"> | <img src="https://ardupilot.org/copter/_images/scripting-MP-mavftp.png" alt="drawing" width="315"/> |
 
 ### Step 3. Enable LUA on CAN
 
@@ -55,7 +56,7 @@ The following parameters should be set to start the script and configure the CAN
 
 Then the flight controller should be rebooted and parameters should be refreshed.
 
-> Some parameters appear only after setting other paramters, so you may need to reboot the autopilot a few times
+> Some parameters appear only after setting other parameters, so you may need to reboot the autopilot a few times
 
 ### Step 4. Set Cyphal registers
 
@@ -87,7 +88,7 @@ Configure the yakut-related environment variables, connect autopilot and CAN-sni
 
 If you run `y mon`, you should get:
 
-<img src="assets/y_mon.png" alt="drawing" width="500"/>
+<img src="https://raw.githubusercontent.com/wiki/PonomarevDA/cyphal_lua_ardupilot/assets/y_mon.png" alt="drawing" width="500">
 
 Here, we have 2 nodes: autopilot with node_id=1 (it is configured in `CYP_NODE_ID`) and yakut with node_id=127. The autopilot publishes setpoint with port_id=2000 (`CYP_SP`) with ~234 Hz and readiness with port_id=2001 (`CYP_RD`) with ~10 Hz.
 
@@ -117,4 +118,12 @@ Reference: https://opencyphal.org/specification/Cyphal_Specification.pdf
 
 ## 4. KNOWN ISSUES
 
-- `Insufficent memory loading`. Try to disable some feature as it is recommended on [the ardupilot forum](https://discuss.ardupilot.org/t/lua-script-pre-arm-error/86834). For example, `LOG_FILE_BUFSIZE = 8` can help.
+**1. `Insufficent memory loading`**
+
+Try to disable some feature as it is recommended on [the ardupilot forum](https://discuss.ardupilot.org/t/lua-script-pre-arm-error/86834).
+
+For example, `LOG_FILE_BUFSIZE = 8` can help.
+
+**2. Why Cyphal paramters are float?**
+
+[Docs](https://ardupilot.org/copter/docs/common-scripting-parameters.html) says `all scripting defined parameters are of type FLOAT, ie floating point numbers`.
