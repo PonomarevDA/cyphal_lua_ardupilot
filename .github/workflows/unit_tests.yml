@@ -12,6 +12,4 @@ jobs:
         run: sudo apt-get install -y lua5.3
 
       - name: Run tests
-        run: |
-          cd libcanard
-          lua tests/all.lua
+        run: lua tests/all.lua

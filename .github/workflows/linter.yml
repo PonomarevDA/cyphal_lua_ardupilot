@@ -12,6 +12,4 @@ jobs:
         run: sudo apt-get install -y lua-check
 
       - name: Run linter
-        run: |
-          cd libcanard
-          luacheck tests/* ../Cyphal.lua --config ../luacheck.lua  --quiet
+        run: luacheck --config config.lua tests/*.lua Cyphal.lua libcanard/*.lua

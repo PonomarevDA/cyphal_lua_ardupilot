@@ -1,8 +1,7 @@
-# Libcanard LUA
+# Libcanard LUA tests
 
 ## Tests
 
 ```bash
-cd libcanard
 lua tests/all.lua
 ```

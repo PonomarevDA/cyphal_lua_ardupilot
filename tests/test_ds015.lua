@@ -1,31 +1,7 @@
-require 'libcanard'
-require 'libcanard_type_cast'
-require 'libcanard_crc16'
-require 'libcanard_ds015'
+package.path = package.path .. ";libcanard/?.lua"
 require 'libcanard_assert'
-
-
-function test_parse_id()
-  assert_eq(65535, parse_id(34067071))  -- srv, skip for a while
-  assert_eq(2002, parse_id(512639))     -- msg node_id=127, subject_id=2002 (synthetic)
-  assert_eq(2002, parse_id(275239551))  -- msg node_id=127, subject_id=2002 (real example)
-end
-
-function test_get_number_of_frames_by_payload_size()
-  assert_eq(1, get_number_of_frames_by_payload_size(7))
-  assert_eq(2, get_number_of_frames_by_payload_size(8))
-  assert_eq(2, get_number_of_frames_by_payload_size(12))
-  assert_eq(3, get_number_of_frames_by_payload_size(13))
-  assert_eq(3, get_number_of_frames_by_payload_size(19))
-  assert_eq(4, get_number_of_frames_by_payload_size(20))
-end
-
-function test_create_tail_byte()
-  assert_eq(244, create_tail_byte(1, 1, 20))
-  assert_eq(174, create_tail_byte(1, 2, 14))
-  assert_eq(88, create_tail_byte(2, 2, 24))
-  assert_eq(13, create_tail_byte(2, 3, 13))
-end
+require 'libcanard'
+require 'libcanard_ds015'
 
 function test_array_serialize()
   payload = {}
@@ -113,8 +89,17 @@ function test_vector_serialize()
   end
 end
 
-test_parse_id()
-test_get_number_of_frames_by_payload_size()
-test_create_tail_byte()
+function test_compact_feedback_deserialize()
+  assert_eq(0, compact_feedback_deserialize({0, 248, 0, 0, 0, 0, 0}, 7).voltage)
+  assert_eq(2047, compact_feedback_deserialize({255, 7, 0, 0, 0, 0, 0}, 7).voltage)
+
+  assert_eq(0, compact_feedback_deserialize({0, 7, 0, 0, 0, 0, 0}, 7).dc_current)
+  assert_eq(2047, compact_feedback_deserialize({0, 248, 63, 0, 0, 0, 0}, 7).dc_current)
+
+  assert_eq(0, compact_feedback_deserialize({0, 0, 0, 0, 0, 0, 0}, 7).rpm)
+  assert_eq(4095, compact_feedback_deserialize({0, 0, 0, 0, 248, 127, 0}, 7).rpm)
+end
+
 test_array_serialize()
 test_vector_serialize()
+test_compact_feedback_deserialize()
