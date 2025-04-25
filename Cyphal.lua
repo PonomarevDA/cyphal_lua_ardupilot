@@ -46,7 +46,9 @@ function update()
   process_readiness()
   send_setpoint()
 
-  check_performance()
+  if CYPHAL_TESTS == 1 then
+    check_performance()
+  end
 
   return update, 4 -- ms
 end
@@ -134,31 +136,56 @@ function check_performance()
   loop_counter = loop_counter + 1
   if next_log_time <= millis() then
     next_log_time = millis() + 5000
-    -- gcs:send_text(6, string.format("LUA loop times: %i", loop_counter))
+    gcs:send_text(6, string.format("LUA loop times: %i", loop_counter))
     loop_counter = 0
   end
 end
 
+-- uint11 dc_voltage # [    0,+2047] * 0.2 = [     0,+409.4] volt
 function esc_feedback_parse_voltage(frame)
-  -- uint11 dc_voltage # [    0,+2047] * 0.2 = [     0,+409.4] volt
-  return ((frame:data(0)) + ((frame:data(1) % 8) << 8))
+  local raw = ((frame:data(0)) + ((frame:data(1) % 8) << 8))
+  return raw * 0.2
 end
 
+-- int12 dc_current # [-2048,+2047] * 0.2 = [-409.6,+409.4] ampere
 function esc_feedback_parse_dc_current(frame)
-  -- int12 dc_current # [-2048,+2047] * 0.2 = [-409.6,+409.4] ampere
-  return ((frame:data(1) >> 3) + ((frame:data(2) % 128) << 5))
+  local raw = ((frame:data(1) >> 3) + ((frame:data(2) % 128) << 5))
+  if raw >= 2048 then
+    raw = raw - 4096
+  end
+  return raw * 0.2
 end
 
+-- int13 velocity # [-4096,+4095] radian/second (approx. [-39114,+39104] RPM)
 function esc_feedback_parse_rpm(frame)
-  -- int13 velocity # [-4096,+4095] radian/second (approx. [-39114,+39104] RPM)
-  return ((frame:data(4) >> 3) + (frame:data(5) << 5))
+  local raw = ((frame:data(4) >> 3) + (frame:data(5) << 5))
+  if raw >= 4096 then
+    raw = raw - 8192
+  end
+  return math.floor(raw * 9.549297)
 end
 
 function esc_feedback_callback(frame, esc_idx)
-  -- local voltage_raw = esc_feedback_parse_voltage(frame)
-  -- local current_raw = esc_feedback_parse_dc_current(frame)
+  local voltage = esc_feedback_parse_voltage(frame)
+  local current = esc_feedback_parse_dc_current(frame)
   local rpm = esc_feedback_parse_rpm(frame)
-  -- gcs:send_text(6, string.format("ESC FB %i: V=%i, I=%i", esc_idx, voltage_raw, current_raw))
+
+  if CYPHAL_TESTS == 1 then
+    gcs:send_text(6, string.format("ESC FB %i: V=%f, I=%f, RPM=%i", esc_idx, voltage, current, rpm))
+  end
+
+  local telemdata = ESCTelemetryData()
+  telemdata:voltage(voltage)
+  telemdata:current(current)
+  local TELEMETRY_TYPE_VOLTAGE = 1 << 2
+  local TELEMETRY_TYPE_CURRENT = 1 << 3
+  local data_mask = TELEMETRY_TYPE_VOLTAGE | TELEMETRY_TYPE_CURRENT
+  esc_telem:update_telem_data(esc_idx, telemdata, data_mask)
+
+  -- negative RPM is not supported
+  if rpm < 0 then
+    rpm = 0
+  end
   esc_telem:update_rpm(esc_idx, rpm, 0)
 end
 
@@ -378,7 +405,7 @@ end
 
 -- Entry point
 if (CYPHAL_TESTS >= 1) then
-  gcs:send_text(5, "LUA Cyphal unit tests enabled!")
+  gcs:send_text(5, "LUA Cyphal self-testing enabled!")
 end
 
 if (CYPHAL_ENABLE >= 1) then
