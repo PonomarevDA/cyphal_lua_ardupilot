@@ -2,6 +2,10 @@
 local driver1 = CAN:get_device(20)
 assert(driver1 ~= nil, 'No scripting CAN interfaces found')
 
+-- User's config
+local MOTOR_1_FUNC_IDX = 33
+local MAX_NUMBER_OF_MOTORS = 8
+
 local PARAM_TABLE_KEY = 42
 local PARAM_TABLE_PREFIX = "CYP_"
 function bind_param(name, idx, def)
@@ -18,24 +22,24 @@ local SETPOINT_PORT_ID  = bind_param("SP",      4, 65535)
 local READINESS_PORT_ID = bind_param("RD",      5, 65535)
 local FEEDBACK_PORT_ID  = bind_param("FB",      6, 65535)
 
+-- Heartbeat publisher
 local HEARTBEAT_PORT_ID = 7509
 local heartbeat_transfer_id = 0
 local next_heartbeat_pub_time_ms = 1000
 
+-- Readiness publisher
+local READINESS_STANDBY = 2
+local READINESS_ENGAGED = 3
 local readiness_transfer_id = 0
 local next_readiness_pub_time_ms = 1000
 
+-- Setpoint publisher
 local setpoint_transfer_id = 0
 
--- Constants
+-- Cyphal constants
 local MAX_PORT_ID = 8191
-local MOTOR_1_FUNC_IDX = 33
-local MAX_NUMBER_OF_MOTORS = 8
 
-local READINESS_STANDBY = 2
-local READINESS_ENGAGED = 3
-
-
+-- Performance analysis
 local next_log_time = 1000
 local loop_counter = 0
 
@@ -298,10 +302,11 @@ function convert_payload_to_can_data(buffer, payload, payload_size, transfer_id)
     buffer[buffer_size] = crc >> 8
     buffer_size = buffer_size + 1
     buffer[buffer_size] = crc % 256
-    buffer_size = buffer_size + 1
-    tail_byte_counter = tail_byte_counter + 1
-    buffer[buffer_size] = create_tail_byte(tail_byte_counter, number_of_frames, transfer_id)
   end
+
+  buffer_size = buffer_size + 1
+  tail_byte_counter = tail_byte_counter + 1
+  buffer[buffer_size] = create_tail_byte(tail_byte_counter, number_of_frames, transfer_id)
 
   return buffer_size
 end
@@ -409,6 +414,6 @@ if (CYPHAL_TESTS >= 1) then
 end
 
 if (CYPHAL_ENABLE >= 1) then
-  gcs:send_text(5, "LUA Cyphal enabled!")
+  gcs:send_text(5, "LUA Cyphal v0.2 enabled!")
   return update()
 end

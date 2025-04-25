@@ -66,10 +66,11 @@ function convert_payload_to_can_data(buffer, payload, payload_size, transfer_id)
     buffer[buffer_size] = crc >> 8
     buffer_size = buffer_size + 1
     buffer[buffer_size] = crc % 256
-    buffer_size = buffer_size + 1
-    tail_byte_counter = tail_byte_counter + 1
-    buffer[buffer_size] = create_tail_byte(tail_byte_counter, number_of_frames, transfer_id)
   end
+
+  buffer_size = buffer_size + 1
+  tail_byte_counter = tail_byte_counter + 1
+  buffer[buffer_size] = create_tail_byte(tail_byte_counter, number_of_frames, transfer_id)
 
   return buffer_size
 end
