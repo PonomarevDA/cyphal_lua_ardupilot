@@ -76,6 +76,7 @@ function test_vector_serialize()
   buffer = {}
 
   -- 1. Empty setpoint
+  number_of_setpoints = 8
   setpoints = {0, 0, 0, 0, 0, 0, 0, 0}
   transfer_id = 7
 
@@ -86,7 +87,7 @@ function test_vector_serialize()
   }
   expected_buffer_size = 21
 
-  payload_size = vector_serialize(setpoints, 8, payload)
+  payload_size = vector_serialize(setpoints, number_of_setpoints, payload)
   buffer_size = convert_payload_to_can_data(buffer, payload, payload_size, transfer_id)
 
   assert_eq(expected_buffer_size, buffer_size)
@@ -95,10 +96,11 @@ function test_vector_serialize()
   end
 
   -- 2. Not empty setpoint
+  number_of_setpoints = 8
   setpoints = {0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7}
   transfer_id = 18
 
-  payload_size = vector_serialize(setpoints, 8, payload)
+  payload_size = vector_serialize(setpoints, number_of_setpoints, payload)
   buffer_size = convert_payload_to_can_data(buffer, payload, payload_size, transfer_id)
 
   expected_buffer = {
@@ -107,6 +109,24 @@ function test_vector_serialize()
     0x9A, 0x39, 0xA2, 0xF2, 0x72
   }
   expected_buffer_size = 21
+
+  assert_eq(expected_buffer_size, buffer_size)
+  for idx = 1, buffer_size do
+    assert_eq(expected_buffer[idx], buffer[idx])
+  end
+
+  -- 3. Setpoint 1 frame
+  number_of_setpoints = 3
+  setpoints = {0, 0, 0}
+  transfer_id = 7
+
+  expected_buffer = {
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xE7
+  }
+  expected_buffer_size = 7
+
+  payload_size = vector_serialize(setpoints, number_of_setpoints, payload)
+  buffer_size = convert_payload_to_can_data(buffer, payload, payload_size, transfer_id)
 
   assert_eq(expected_buffer_size, buffer_size)
   for idx = 1, buffer_size do
