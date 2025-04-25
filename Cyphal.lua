@@ -46,7 +46,7 @@ function update()
   process_readiness()
   send_setpoint()
 
-  check_perfomance()
+  check_performance()
 
   return update, 4 -- ms
 end
@@ -59,9 +59,11 @@ function spin_recv()
     end
 
     local port_id = parse_frame(frame)
-    if port_id >= FEEDBACK_PORT_ID and port_id < (FEEDBACK_PORT_ID + MAX_NUMBER_OF_MOTORS) then
-      local esc_idx = port_id - FEEDBACK_PORT_ID
-      esc_feedback_callback(frame, esc_idx)
+    if port_id > 0 and port_id < 65535 then
+      if port_id >= FEEDBACK_PORT_ID and port_id < (FEEDBACK_PORT_ID + MAX_NUMBER_OF_MOTORS) then
+        local esc_idx = port_id - FEEDBACK_PORT_ID
+        esc_feedback_callback(frame, esc_idx)
+      end
     end
   end
 end
@@ -128,7 +130,7 @@ function send_setpoint()
   setpoint_transfer_id = increment_transfer_id(setpoint_transfer_id)
 end
 
-function check_perfomance()
+function check_performance()
   loop_counter = loop_counter + 1
   if next_log_time <= millis() then
     next_log_time = millis() + 5000
