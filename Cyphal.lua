@@ -3,9 +3,10 @@ local driver1 = CAN:get_device(20)
 assert(driver1 ~= nil, 'No scripting CAN interfaces found')
 
 -- User's config
-local MOTOR_1_FUNC_IDX = 33
-local MAX_NUMBER_OF_MOTORS = 8
+local NUMBER_OF_MOTORS = 1
+local SRVXX_FUNC = {70}
 
+-- Parameters
 local PARAM_TABLE_KEY = 42
 local PARAM_TABLE_PREFIX = "CYP_"
 function bind_param(name, idx, def)
@@ -66,7 +67,7 @@ function spin_recv()
 
     local port_id = parse_frame(frame)
     if port_id > 0 and port_id < 65535 then
-      if port_id >= FEEDBACK_PORT_ID and port_id < (FEEDBACK_PORT_ID + MAX_NUMBER_OF_MOTORS) then
+      if port_id >= FEEDBACK_PORT_ID and port_id < (FEEDBACK_PORT_ID + NUMBER_OF_MOTORS) then
         local esc_idx = port_id - FEEDBACK_PORT_ID
         esc_feedback_callback(frame, esc_idx)
       end
@@ -120,18 +121,17 @@ function send_setpoint()
   end
 
   local setpoints = {0, 0, 0, 0, 0, 0, 0, 0}
-  local number_of_motors = 0
-  for motor_idx = 0, MAX_NUMBER_OF_MOTORS - 1 do
-    local pwm_duration_us = SRV_Channels:get_output_pwm(MOTOR_1_FUNC_IDX + motor_idx)
-    if (pwm_duration_us == nil) then
-      break
+  for motor_num = 1, NUMBER_OF_MOTORS do
+    local pwm_duration_us = SRV_Channels:get_output_pwm(SRVXX_FUNC[motor_num])
+    if pwm_duration_us == nil then
+      setpoints[motor_num] = 0
+    else
+      setpoints[motor_num] = (pwm_duration_us - 1000) * 0.001
     end
-    setpoints[motor_idx + 1] = (pwm_duration_us - 1000) * 0.001
-    number_of_motors = number_of_motors + 1
   end
 
   local payload = {}
-  local payload_size = vector_serialize(setpoints, number_of_motors, payload)
+  local payload_size = vector_serialize(setpoints, NUMBER_OF_MOTORS, payload)
   can_send_cyphal_payload(payload, payload_size, SETPOINT_PORT_ID, setpoint_transfer_id)
   setpoint_transfer_id = increment_transfer_id(setpoint_transfer_id)
 end
