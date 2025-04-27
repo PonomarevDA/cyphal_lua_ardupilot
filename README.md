@@ -3,84 +3,95 @@
 
 # ArduPilot Cyphal/CAN LUA Driver
 
-This driver implements support for Cyphal ESCs such as [Myxa](https://cyphal.store/products/zubax-ad0505-myxa-esc), [Mini node](https://cyphal.store/products/raccoonlab-cyphal-can-mininode), [kotleta20](https://holybro.com/products/kotleta20) and other devices.
+The driver implements Cyphal [ESC service](https://github.com/OpenCyphal/public_regulated_data_types/blob/master/reg/udral/service/actuator/esc/_.0.1.dsdl) support for up to 8 ESC like [Myxa](https://cyphal.store/products/zubax-ad0505-myxa-esc), [Mini node](https://cyphal.store/products/raccoonlab-cyphal-can-mininode) and [kotleta20](https://holybro.com/products/kotleta20).
 
-It supports the minimal required features for a Cyphal node: [uavcan.node.Heartbeat](https://github.com/OpenCyphal/public_regulated_data_types/blob/master/uavcan/node/7509.Heartbeat.1.0.dsdl).
+It publishes:
+- [uavcan.node.Heartbeat](https://github.com/OpenCyphal/public_regulated_data_types/blob/master/uavcan/node/7509.Heartbeat.1.0.dsdl) with 1 Hz rate,
+- [reg.udral.service.common.Readiness](https://github.com/OpenCyphal/public_regulated_data_types/blob/master/reg/udral/service/common/Readiness.0.1.dsdl) with 10 Hz rate,
+- [reg.udral.service.actuator.common.sp](https://github.com/OpenCyphal/public_regulated_data_types/blob/master/reg/udral/service/actuator/common/sp/_.0.1.dsdl) with maximum possible rate.
 
-It supports [ESC service](https://github.com/OpenCyphal/public_regulated_data_types/blob/master/reg/udral/service/actuator/esc/_.0.1.dsdl)  for up to 8 ESC:
-- [reg.udral.service.actuator.common.sp](https://github.com/OpenCyphal/public_regulated_data_types/blob/master/reg/udral/service/actuator/common/sp/_.0.1.dsdl),
-- [reg.udral.service.common.Readiness](https://github.com/OpenCyphal/public_regulated_data_types/blob/master/reg/udral/service/common/Readiness.0.1.dsdl),
+It subscribes on:
 - [zubax.telega.CompactFeedback](https://github.com/Zubax/zubax_dsdl/blob/master/zubax/telega/CompactFeedback.1.0.dsdl).
 
-> The driver does not provide support for features such as [uavcan.node.GetInfo](https://github.com/OpenCyphal/public_regulated_data_types/blob/master/uavcan/node/430.GetInfo.1.0.dsdl), [Register interface](https://github.com/OpenCyphal/public_regulated_data_types/blob/master/uavcan/register/384.Access.1.0.dsdl) and [uavcan.node.port.List](https://github.com/OpenCyphal/public_regulated_data_types/blob/master/uavcan/node/port/7510.List.1.0.dsdl).
+The driver introduces the following ArduPilot parameters:
 
-## 1. USAGE
+||||
+|-|-|-|
+| CYP_ENABLE      | 1 | 1 means Cyphal is enabled, 0 means disabled </br> Default: Enabled |
+| CYP_NODE_ID     | 1-127 | Node identifier in Cyphal-network. Usually, 127 is reserved for debugging tools and 1 is used for an autopilot. </br> Default: 1 |
+| CYP_TESTS       | 0 | If set to 1, the driver analysis his own performance and enables extra verbosity to GCS </br> Default: Disabled |.
+| CYP_RD          | 1-8191 | Readiness port id. Enabled if less then 8191, otherwise disabled. </br> Default: 65535 (disabled). |
+| CYP_SP          | 1-8191 | Setpoint port id for ESCs. Enabled if less then 8191, otherwise disabled. </br> Default: 65535 (disabled). |
+| CYP_FB          | 1-8191 | ESC Feedback [array of port id](https://forum.opencyphal.org/t/rfc-add-array-of-ports/1878). Enabled if less then 8191, otherwise disabled. When enabled, it occupies 8 consecutive port identifiers. For example, if it is 3000, it will occupy [3000, 3007] identifiers. </br> Default: 65535 (disabled). |
 
-### Step 1. Upload ArduPilot firmware
+**Limitation**
 
-First, you need to upload an ArduPilot firmware to the FMU. In general, it should work with any version of ArduPilot that supports LUA. It has been tested with the latest stable version `v4.4.4`. The easiest ways to upload the firmware are to use QGroundControl or MissionPlanner.
+The driver does not provide support for the following features:
+- [uavcan.node.GetInfo](https://github.com/OpenCyphal/public_regulated_data_types/blob/master/uavcan/node/430.GetInfo.1.0.dsdl)
+- [Register interface](https://github.com/OpenCyphal/public_regulated_data_types/blob/master/uavcan/register/384.Access.1.0.dsdl)
+- [uavcan.node.port.List](https://github.com/OpenCyphal/public_regulated_data_types/blob/master/uavcan/node/port/7510.List.1.0.dsdl)
+
+## 1. Step 1. Upload ArduPilot firmware
+
+Any modern flight controller and ArduPilot firmware with scripting support should be suitable.
+
+Tested on `Pixhawk6C`, `CuavV6X` and `CubeOrange` with `Copter` and `ArduPlane` firmware `v4.4.4` and `v4.4.7`.
+
+**Option 1.** Upload the latest stable fimware with QGroundControl or MissionPlanner.
 
 | [QGroundControl](https://docs.qgroundcontrol.com/Stable_V4.3/en/qgc-user-guide/setup_view/firmware.html) | [MissionPlanner](https://ardupilot.org/planner/docs/common-loading-firmware-onto-pixhawk.html) |
 |-|-|
 | <img src="https://raw.githubusercontent.com/wiki/PonomarevDA/cyphal_lua_ardupilot/assets/firmware_setup.png" alt="drawing" width="215"> | <img src="https://ardupilot.org/planner/_images/Pixhawk_InstallFirmware.jpg" alt="drawing" width="485"/> |
 
-
-Alternatively, you can manually build a binary and upload the firmware via cli. Here is an example for CUAVv5:
+**Option 2.** Build and upload firmware manually from source code.
 
 ```bash
 ./waf list_boards
-./waf configure --board CUAVv5
+./waf configure --board CubeOrange # Pixhawk6C, Pixhawk6X
 ./waf copter
 ./waf --targets bin/arducopter --upload
 ```
 
-### Step 2. Load Cyphal.lua to microSD card
+## Step 2. Load Cyphal.lua to microSD card
 
 This driver should be loaded by placing the lua script in the
-`APM/scripts` directory on the microSD card, which can be done either directly or via MAVFTP.
+`APM/scripts` directory on the microSD card.
+
+**Opion 1.** Upload `Cyphal.lua` script with a helper python script
+
+```bash
+pip install -r requirements.txt
+./upload.py -c /dev/ttyACM0 # use a path to the flight controler
+```
+
+**Option 2.** Upload the script with card reader or using MissionPlanner
 
 | Copy directly | [Using MAVFtp](https://ardupilot.org/copter/docs/common-lua-scripts.html) |
 |-|-|
 | <img src="https://raw.githubusercontent.com/wiki/PonomarevDA/cyphal_lua_ardupilot/assets/sdcard.png" alt="drawing" width="385"> | <img src="https://ardupilot.org/copter/_images/scripting-MP-mavftp.png" alt="drawing" width="315"/> |
 
-### Step 3. Enable LUA on CAN
+## Step 3. Configure parameters
 
 The following parameters should be set to start the script and configure the CAN driver:
 
-||||
-|-|-|-|
-| [SCR_ENABLE](https://ardupilot.org/plane/docs/parameters.html#scr-parameters) | 1 | 1 means scripting is enabled, 0 means disabled
-| [CAN_D1_PROTOCOL](https://ardupilot.org/plane/docs/parameters.html#can-d1-parameters) | 10 | 10 means scripting
+|||
+|-|-|
+| [SCR_ENABLE](https://ardupilot.org/plane/docs/parameters.html#scr-parameters) | 1 - means scripting is enabled, 0 means disabled
+| [CAN_D1_PROTOCOL](https://ardupilot.org/plane/docs/parameters.html#can-d1-parameters) | 10 - means scripting
 | [CAN_P1_DRIVER](https://ardupilot.org/plane/docs/parameters.html#can-p1-driver-index-of-virtual-driver-to-be-used-with-physical-can-interface) | First driver
-| [CAN_P1_BITRATE](https://ardupilot.org/plane/docs/parameters.html#can-p1-bitrate-bitrate-of-can-interface)  | 1000000 | Default bitrate for most of the applications
+| [CAN_P1_BITRATE](https://ardupilot.org/plane/docs/parameters.html#can-p1-bitrate-bitrate-of-can-interface)  | 1000000 - Default bitrate for most of the applications
 
-Then the flight controller should be rebooted and parameters should be refreshed.
+Then reboot the flight controller and Cyphal parameters should appear. If the parameters don't appear, try `Refresh` button in QGC or restart the GCS. You need to configure these:
 
-> Some parameters appear only after setting other parameters, so you may need to reboot the autopilot a few times
+|||
+|-|-|
+| CYP_SP | Enable publishing [sp.Vector](https://github.com/OpenCyphal/public_regulated_data_types/blob/master/reg/udral/service/actuator/common/sp/_.0.1.dsdl). Choose any value withing [1, 7167]. For example, 2000. |
+| CYP_RD | Enable publishing [Readiness](https://github.com/OpenCyphal/public_regulated_data_types/blob/master/reg/udral/service/common/Readiness.0.1.dsdl). Choose any value withing [1, 7167]. For example, 2001. |
+| CYP_FB  | Enable subscribing on a group of [CompactFeedback](https://github.com/Zubax/zubax_dsdl/blob/master/zubax/telega/CompactFeedback.1.0.dsdl)s. Choose any value withing [1, 7167]. For example, 3000. |
 
-### Step 4. Set Cyphal registers
+Then reboot the flight controller.
 
-Once `Cyphal.lua` script is succesfully executed, a few Cyphal registers will appear in the parameters.
-
-The autopilot node has the following Cyphal-related parameters:
-
-||||
-|-|-|-|
-| CYP_ENABLE      | 1 | 1 means Cyphal is enabled, 0 means disabled
-| CYP_NODE_ID     | 1-127 | Node identifier in Cyphal-network. Usually, 127 is reserved for debugging tools and 1 is used for an autopilot.
-| CYP_TESTS       | 0 | If set to 1, self tests will be runned at the beginning of the application.
-
-and it has the following Port-registers:
-
-||||
-|-|-|-|
-| CYP_RD          | 1-8191 | Readiness port id. Enabled if less then 8191, otherwise disabled. By default, 65535. |
-| CYP_SP          | 1-8191 | Setpoint port id for ESCs. Enabled if less then 8191, otherwise disabled. By default, 65535. |
-| CYP_FB          | 1-8191 | ESC Feedback [array of port id](https://forum.opencyphal.org/t/rfc-add-array-of-ports/1878). Enabled if less then 8191, otherwise disabled. By default, 65535. When enabled, it occupies 8 consecutive port identifiers. For example, if it is 3000, it will occupy [3000, 3007] identifiers. |
-
-> It's well researched, but sometimes parameters don't appear in the Ground Control Station. A simple reboot of QGC solves this problem.
-
-### Step 5. Try with yakut
+## Step 4. Try with yakut
 
 Configure the yakut-related environment variables, connect autopilot and CAN-sniffer together.
 
@@ -101,22 +112,13 @@ y sub 2001:reg.udral.service.common.Readiness
 y sub 2000:reg.udral.service.actuator.common.sp.Vector8
 ```
 
-### Step 6. Publish emulated ESC feedback
+## Step 5. Try with emulated ESC
 
-> in process
+```bash
+./emulate_zubax_myxa_feedback.py
+```
 
-## 2. CONTRIBUTING
-
-Before pushing a commit:
-
-1. Check code style with `lua-check`
-2. Run tests with `lua tests/all.lua`
-
-## 3. USEFUL LINKS
-
-Reference: https://opencyphal.org/specification/Cyphal_Specification.pdf
-
-## 4. KNOWN ISSUES
+## KNOWN ISSUES
 
 **1. `Insufficent memory loading`**
 
