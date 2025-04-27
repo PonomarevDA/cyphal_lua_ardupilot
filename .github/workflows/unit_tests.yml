@@ -34,7 +34,7 @@ jobs:
         run: echo "COVERAGE=$(tail -1 luacov.report.out | awk '{print $NF}')" >> $GITHUB_ENV
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: luacov.report.out
           path: luacov.report.out
